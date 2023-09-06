@@ -1,6 +1,6 @@
 version: "3.8"
-services:
 
+services:
   laravel-app:
     build:
       context: .
@@ -28,7 +28,7 @@ services:
       - laravel-app
     restart: always
     ports:
-      - ${MS_PORT_PUBLIC}:80
+      - "${MS_PORT_PUBLIC}:80"
     networks:
       - frontend
       - backend
@@ -58,7 +58,7 @@ services:
       context: .
       dockerfile: ./docker/redis/Dockerfile
     hostname: redis
-    container_name: us-exchange-rates-redis
+    container_name: hopify-redis
     restart: always
     volumes:
       - ${DATA_PATH_HOST}/redis:/data

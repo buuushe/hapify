@@ -1,35 +1,53 @@
-FROM php:8.2-apache
+FROM php:8.2.8-fpm
 
+ARG WORKDIR=/var/www
+ARG HOST_UID=1000
+ENV USER=www-data
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
+    curl \
     libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libmemcached-dev \
+    libzip-dev \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libpq-dev \
     zip \
     unzip \
-    git \
-    && rm -rf /var/lib/apt/lists/* \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd pdo pdo_mysql
+    supervisor \
+    sqlite3  \
+    nano \
+    cron
 
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions zip, mbstring, exif, bcmath, intl
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+RUN docker-php-ext-install  zip mbstring exif pcntl bcmath -j$(nproc) gd intl
+
+# Install Redis and enable it
+RUN pecl install redis  && docker-php-ext-enable redis
+
+# Install the PHP pdo_mysql extention
+RUN docker-php-ext-install pdo_mysql
+
+# Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-WORKDIR /var/www
+# Set working directory
+WORKDIR $WORKDIR
 
-COPY ./docker/laravel-app/conf.d /usr/local/etc/php/conf.d
-COPY ./src/laravel-app /var/www
+COPY ./src/laravel-app $WORKDIR
 
-RUN composer install
+RUN usermod -u ${HOST_UID} www-data
+RUN groupmod -g ${HOST_UID} www-data
 
-# Опционально: выполняем миграции и сиды Laravel
-# RUN php artisan migrate
-# RUN php artisan db:seed
-
-# Опционально: настраиваем права доступа к файлам и директориям, если это необходимо
-# RUN chown -R www-data:www-data /var/www/html/storage
-# RUN chmod -R 775 /var/www/html/storage
-
-# Опционально: настраиваем конфигурацию PHP, если это необходимо
-# COPY php.ini /usr/local/etc/php/conf.d/custom.ini
+RUN chmod -R 755 $WORKDIR
+RUN chown -R www-data:www-data $WORKDIR
 
 EXPOSE 9000
 
