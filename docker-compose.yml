@@ -1,0 +1,74 @@
+version: "3.8"
+services:
+
+  laravel-app:
+    build:
+      context: .
+      dockerfile: ./docker/laravel-app/Dockerfile
+    container_name: hapify-laravel-app
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=${MYSQL_HOST}
+      - DB_DATABASE=${MYSQL_DATABASE}
+      - DB_USERNAME=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+    networks:
+      - backend
+    volumes:
+      - ./src/laravel-app:/var/www
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./docker/nginx/Dockerfile
+    container_name: hapify-nginx
+    depends_on:
+      - laravel-app
+    restart: always
+    ports:
+      - ${MS_PORT_PUBLIC}:80
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - ./docker/nginx/configs/conf.d/default.conf:/etc/nginx/conf.d/default.conf
+      - ./src/laravel-app:/var/www
+
+  mysql:
+    image: mysql
+    container_name: hapify-mysql
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+      - ./docker/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    restart: always
+    networks:
+      - backend
+    ports:
+      - "${MYSQL_EXT_PORT}:3306"
+
+  redis:
+    build:
+      context: .
+      dockerfile: ./docker/redis/Dockerfile
+    hostname: redis
+    container_name: us-exchange-rates-redis
+    restart: always
+    volumes:
+      - ${DATA_PATH_HOST}/redis:/data
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    networks:
+      - backend
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
